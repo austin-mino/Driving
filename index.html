@@ -2,14 +2,32 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>3D 자동차 운전 - 터치 UI 개선</title>
+  <title>driving</title>
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      user-select: none;
+      font-family: sans-serif;
+      background: #000;
     }
-    canvas { display: block; }
+    canvas {
+      display: block;
+    }
+
+    #rotateNotice {
+      position: fixed;
+      inset: 0;
+      background: #111;
+      color: #fff;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.5rem;
+      text-align: center;
+      z-index: 200;
+    }
 
     .controls {
       position: fixed;
@@ -17,21 +35,24 @@
       z-index: 100;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
+
     #leftControls {
       left: 20px;
     }
+
     #rightControls {
       right: 20px;
     }
+
     .btn {
-      width: 60px;
-      height: 60px;
+      width: 80px;
+      height: 80px;
       background: rgba(79, 158, 255, 0.8);
-      border-radius: 12px;
+      border-radius: 14px;
       color: white;
-      font-size: 20px;
+      font-size: 28px;
       font-weight: bold;
       display: flex;
       align-items: center;
@@ -40,16 +61,32 @@
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
       transition: background 0.3s;
     }
+
     .btn:active {
       background: rgba(79, 158, 255, 1);
+    }
+
+    @media (orientation: portrait) {
+      #rotateNotice {
+        display: flex;
+      }
+      canvas, #leftControls, #rightControls {
+        display: none !important;
+      }
     }
   </style>
 </head>
 <body>
 
+<div id="rotateNotice">
+  <p>이 게임은 가로 모드에서만 플레이할 수 있습니다.</p>
+  <p>기기를 회전해 주세요 📱↔️</p>
+</div>
+
+<!-- 터치 컨트롤 -->
 <div id="leftControls" class="controls">
   <div id="btnLeft" class="btn">◀</div>
   <div id="btnRight" class="btn">▶</div>
@@ -69,7 +106,6 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 바닥
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(200, 200),
     new THREE.MeshPhongMaterial({ color: 0x444444 })
@@ -77,7 +113,6 @@
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // 자동차
   const car = new THREE.Mesh(
     new THREE.BoxGeometry(2, 1, 4),
     new THREE.MeshPhongMaterial({ color: 0xff0000 })
@@ -85,13 +120,11 @@
   car.position.y = 0.5;
   scene.add(car);
 
-  // 조명
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const light = new THREE.DirectionalLight(0xffffff, 0.8);
   light.position.set(5, 10, 7);
   scene.add(light);
 
-  // 상태
   let speed = 0;
   const maxSpeed = 0.2;
   const accel = 0.01;
@@ -101,14 +134,12 @@
   const keys = {};
   const touch = { left: false, right: false, accel: false, brake: false };
 
-  // 키보드 입력
-  window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
-  window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+  window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+  window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-  // 터치 버튼
-  function bindTouch(id, prop) {
+  function bindTouch(id, key) {
     const el = document.getElementById(id);
-    const set = (val) => () => touch[prop] = val;
+    const set = v => () => touch[key] = v;
     el.addEventListener('touchstart', set(true), { passive: false });
     el.addEventListener('touchend', set(false), { passive: false });
     el.addEventListener('mousedown', set(true));
@@ -124,36 +155,28 @@
   function animate() {
     requestAnimationFrame(animate);
 
-    const isForward = keys['w'] || keys['arrowup'] || touch.accel;
-    const isBackward = keys['s'] || keys['arrowdown'] || touch.brake;
-    const isLeft = keys['a'] || keys['arrowleft'] || touch.left;
-    const isRight = keys['d'] || keys['arrowright'] || touch.right;
+    const forward = keys['w'] || keys['arrowup'] || touch.accel;
+    const back = keys['s'] || keys['arrowdown'] || touch.brake;
+    const left = keys['a'] || keys['arrowleft'] || touch.left;
+    const right = keys['d'] || keys['arrowright'] || touch.right;
 
-    // 가속
-    if (isForward) speed = Math.min(speed + accel, maxSpeed);
-    else if (isBackward) speed = Math.max(speed - brakePower, -maxSpeed / 2);
+    if (forward) speed = Math.min(speed + accel, maxSpeed);
+    else if (back) speed = Math.max(speed - brakePower, -maxSpeed / 2);
     else {
       speed *= 0.96;
       if (Math.abs(speed) < 0.001) speed = 0;
     }
 
-    // 회전
-    if (isLeft && speed !== 0) {
-      car.rotation.y += (speed > 0 ? 1 : -1) * turnSpeed;
-    }
-    if (isRight && speed !== 0) {
-      car.rotation.y -= (speed > 0 ? 1 : -1) * turnSpeed;
-    }
+    if (left && speed !== 0) car.rotation.y += (speed > 0 ? 1 : -1) * turnSpeed;
+    if (right && speed !== 0) car.rotation.y -= (speed > 0 ? 1 : -1) * turnSpeed;
 
-    // 이동
     car.position.x -= Math.sin(car.rotation.y) * speed;
     car.position.z -= Math.cos(car.rotation.y) * speed;
 
-    // 카메라: 자동차 뒤쪽에서 보기
     const behind = new THREE.Vector3(0, 4, 10);
-    behind.applyAxisAngle(new THREE.Vector3(0,1,0), car.rotation.y);
-    const cameraPos = car.position.clone().add(behind);
-    camera.position.lerp(cameraPos, 0.1);
+    behind.applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
+    const camPos = car.position.clone().add(behind);
+    camera.position.lerp(camPos, 0.1);
     camera.lookAt(car.position);
 
     renderer.render(scene, camera);
@@ -161,10 +184,15 @@
 
   animate();
 
-  window.addEventListener('resize', () => {
+  function resizeCanvas() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(resizeCanvas, 300);
   });
 </script>
 </body>
