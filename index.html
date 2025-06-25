@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title></title> <!-- 제목 비우기 -->
+  <title></title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <style>
     html, body {
@@ -41,7 +41,7 @@
       bottom: 20px;
       z-index: 10;
       display: flex;
-      gap: 20px;
+      gap: 14px;
     }
     #leftControls {
       left: 20px;
@@ -52,13 +52,13 @@
       flex-direction: column;
     }
     .btn {
-      width: 80px;
-      height: 80px;
-      font-size: 2rem;
+      width: 56px;
+      height: 56px;
+      font-size: 1.6rem;
       font-weight: bold;
-      background: rgba(79,158,255,0.8);
+      background: rgba(79,158,255,0.85);
       color: #fff;
-      border-radius: 14px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -76,7 +76,7 @@
       background: rgba(0,0,0,0.5);
       padding: 12px 18px;
       color: white;
-      font-size: 24px;
+      font-size: 22px;
       border-radius: 12px;
       z-index: 10;
     }
@@ -98,19 +98,18 @@
   <div class="btn" id="btnBrake">▼</div>
 </div>
 
-<div id="speed">속도: 0</div>
+<div id="speed">속도: 0 km/h</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
 
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 바닥
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(500, 500),
     new THREE.MeshPhongMaterial({ color: 0x444444 })
@@ -118,7 +117,6 @@
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // 자동차
   const car = new THREE.Mesh(
     new THREE.BoxGeometry(2, 1, 4),
     new THREE.MeshPhongMaterial({ color: 0xff0000 })
@@ -126,15 +124,14 @@
   car.position.y = 0.5;
   scene.add(car);
 
-  // 조명
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const light = new THREE.DirectionalLight(0xffffff, 0.8);
   light.position.set(5, 10, 7);
   scene.add(light);
 
-  // 조작 상태
+  // 운전 변수
   let speed = 0;
-  const maxSpeed = 0.2;
+  const maxSpeed = 0.55; // 약 200km/h
   const accel = 0.01;
   const brake = 0.02;
   const turnSpeed = 0.03;
@@ -169,27 +166,24 @@
     const left = keys['a'] || keys['arrowleft'] || touch.left;
     const right = keys['d'] || keys['arrowright'] || touch.right;
 
-    // 속도 처리
     if (forward) speed = Math.min(speed + accel, maxSpeed);
     else if (back) speed = Math.max(speed - brake, -maxSpeed / 2);
     else speed *= 0.96;
 
-    // 회전
     if (left && speed !== 0) car.rotation.y += (speed > 0 ? 1 : -1) * turnSpeed;
     if (right && speed !== 0) car.rotation.y -= (speed > 0 ? 1 : -1) * turnSpeed;
 
-    // 이동
     car.position.x -= Math.sin(car.rotation.y) * speed;
     car.position.z -= Math.cos(car.rotation.y) * speed;
 
-    // 카메라
-    const behind = new THREE.Vector3(0, 5, 10);
-    behind.applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
+    // 카메라 추적
+    const behind = new THREE.Vector3(0, 5, 10).applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
     const camPos = car.position.clone().add(behind);
     camera.position.lerp(camPos, 0.1);
     camera.lookAt(car.position);
 
-    speedEl.textContent = `속도: ${(Math.abs(speed) * 100).toFixed(0)}`;
+    const kph = Math.abs(speed / maxSpeed * 200);
+    speedEl.textContent = `속도: ${kph.toFixed(0)} km/h`;
 
     renderer.render(scene, camera);
   }
