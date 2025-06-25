@@ -6,27 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #000;
-      font-family: sans-serif;
+      margin: 0; padding: 0; overflow: hidden; background: #000; font-family: sans-serif;
     }
-    canvas {
-      display: block;
-    }
+    canvas { display: block; }
     #rotateNotice {
-      position: fixed;
-      inset: 0;
-      background: #111;
-      color: #fff;
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      font-size: 1.5rem;
-      z-index: 999;
-      text-align: center;
+      position: fixed; inset: 0; background: #111; color: #fff; display: none;
+      flex-direction: column; justify-content: center; align-items: center;
+      font-size: 1.5rem; z-index: 999; text-align: center;
     }
     @media (orientation: portrait) {
       #rotateNotice {
@@ -37,48 +23,30 @@
       }
     }
     .controls {
-      position: fixed;
-      bottom: 20px;
-      z-index: 10;
-      display: flex;
-      gap: 14px;
+      position: fixed; bottom: 20px; z-index: 10; display: flex; gap: 14px;
     }
     #leftControls {
-      left: 20px;
-      flex-direction: row;
+      left: 20px; flex-direction: row;
     }
     #rightControls {
-      right: 20px;
-      flex-direction: column;
+      right: 20px; flex-direction: column;
     }
     .btn {
-      width: 56px;
-      height: 56px;
-      font-size: 1.6rem;
-      font-weight: bold;
-      background: rgba(79,158,255,0.85);
-      color: #fff;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      touch-action: none;
-      user-select: none;
-      cursor: pointer;
+      width: 54px; height: 54px; font-size: 1.5rem; font-weight: bold;
+      background: rgba(79,158,255,0.85); color: #fff; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none; user-select: none; cursor: pointer;
+      transition: background 0.15s;
     }
-    .btn:active {
+    .btn:active, .btn.pressed {
       background: rgba(79,158,255,1);
     }
     #speed {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(0,0,0,0.5);
-      padding: 12px 18px;
-      color: white;
-      font-size: 22px;
-      border-radius: 12px;
-      z-index: 10;
+      position: fixed; top: 20px; right: 20px;
+      background: rgba(0,0,0,0.5); padding: 12px 18px;
+      color: white; font-size: 22px; border-radius: 12px; z-index: 10;
+      font-weight: 700;
+      user-select: none;
     }
   </style>
 </head>
@@ -102,6 +70,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
+  // 기본 세팅
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
 
@@ -110,6 +79,7 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
+  // 바닥
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(500, 500),
     new THREE.MeshPhongMaterial({ color: 0x444444 })
@@ -117,6 +87,7 @@
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
+  // 자동차 모양
   const car = new THREE.Mesh(
     new THREE.BoxGeometry(2, 1, 4),
     new THREE.MeshPhongMaterial({ color: 0xff0000 })
@@ -124,31 +95,46 @@
   car.position.y = 0.5;
   scene.add(car);
 
+  // 조명
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const light = new THREE.DirectionalLight(0xffffff, 0.8);
   light.position.set(5, 10, 7);
   scene.add(light);
 
   // 운전 변수
-  let speed = 0;
-  const maxSpeed = 0.55; // 약 200km/h
-  const accel = 0.004;   // 가속 느리게 변경
-  const brake = 0.02;
-  const turnSpeed = 0.03;
+  let speed = 0;           // 현재 속도 (단위: 임의 단위)
+  let acceleration = 0;    // 가속도(양수일수록 가속, 음수일수록 감속)
+  let steeringAngle = 0;   // 현재 조향 각도 (라디안)
+  let steeringTarget = 0;  // 목표 조향 각도
+  let maxSpeed = 0.55;     // 최대 속도 (임의 단위)
+  const maxReverseSpeed = -0.25; // 최대 후진 속도
+  const accelPower = 0.004;    // 가속력
+  const brakePower = 0.03;     // 브레이크 감속력
+  const friction = 0.012;      // 마찰로 인한 감속력
+  const steeringSpeed = 0.04;  // 조향 시 회전 속도
 
+  // 입력 상태
   const keys = {};
   const touch = { left: false, right: false, accel: false, brake: false };
 
-  document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-  document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+  // 키보드 이벤트
+  document.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    updateBtnClass();
+  });
+  document.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+    updateBtnClass();
+  });
 
+  // 버튼에 터치/마우스 이벤트 바인딩
   function bindBtn(id, key) {
     const el = document.getElementById(id);
-    el.addEventListener('touchstart', () => touch[key] = true);
-    el.addEventListener('touchend', () => touch[key] = false);
-    el.addEventListener('mousedown', () => touch[key] = true);
-    el.addEventListener('mouseup', () => touch[key] = false);
-    el.addEventListener('mouseleave', () => touch[key] = false);
+    el.addEventListener('touchstart', () => { touch[key] = true; updateBtnClass(); });
+    el.addEventListener('touchend', () => { touch[key] = false; updateBtnClass(); });
+    el.addEventListener('mousedown', () => { touch[key] = true; updateBtnClass(); });
+    el.addEventListener('mouseup', () => { touch[key] = false; updateBtnClass(); });
+    el.addEventListener('mouseleave', () => { touch[key] = false; updateBtnClass(); });
   }
 
   bindBtn('btnLeft', 'left');
@@ -156,34 +142,82 @@
   bindBtn('btnAccel', 'accel');
   bindBtn('btnBrake', 'brake');
 
+  // 버튼 누름 상태 반영(색 변경)
+  function updateBtnClass() {
+    const btnMap = { left: 'btnLeft', right: 'btnRight', accel: 'btnAccel', brake: 'btnBrake' };
+    for (const [key, id] of Object.entries(btnMap)) {
+      const el = document.getElementById(id);
+      if (keys[key] || touch[key]) el.classList.add('pressed');
+      else el.classList.remove('pressed');
+    }
+  }
+
+  // 카메라 초기 위치
+  camera.position.set(0, 5, 10);
+  camera.lookAt(car.position);
+
+  // 속도 표시 엘리먼트
   const speedEl = document.getElementById('speed');
 
+  // 메인 애니메이션 함수
   function animate() {
     requestAnimationFrame(animate);
 
+    // 입력 상태 체크
     const forward = keys['w'] || keys['arrowup'] || touch.accel;
-    const back = keys['s'] || keys['arrowdown'] || touch.brake;
+    const backward = keys['s'] || keys['arrowdown'] || touch.brake;
     const left = keys['a'] || keys['arrowleft'] || touch.left;
     const right = keys['d'] || keys['arrowright'] || touch.right;
 
-    if (forward) speed = Math.min(speed + accel, maxSpeed);
-    else if (back) speed = Math.max(speed - brake, -maxSpeed / 2);
-    else speed *= 0.96;
+    // 가속도 계산 (부드럽게 가속/감속)
+    if (forward) acceleration += accelPower;
+    else if (backward) acceleration -= brakePower;
+    else {
+      // 가속도 서서히 0으로 복귀
+      if (acceleration > 0) acceleration = Math.max(0, acceleration - friction);
+      else if (acceleration < 0) acceleration = Math.min(0, acceleration + friction);
+    }
 
-    if (left && speed !== 0) car.rotation.y += (speed > 0 ? 1 : -1) * turnSpeed;
-    if (right && speed !== 0) car.rotation.y -= (speed > 0 ? 1 : -1) * turnSpeed;
+    // 속도에 가속도 적용
+    speed += acceleration;
 
+    // 최대속도 제한
+    if (speed > maxSpeed) speed = maxSpeed;
+    if (speed < maxReverseSpeed) speed = maxReverseSpeed;
+
+    // 마찰로 속도 감소 (부드럽게 감속)
+    if (!forward && !backward) {
+      if (speed > 0) speed = Math.max(0, speed - friction);
+      else if (speed < 0) speed = Math.min(0, speed + friction);
+    }
+
+    // 조향 목표값 설정
+    if (left) steeringTarget = 0.5;
+    else if (right) steeringTarget = -0.5;
+    else steeringTarget = 0;
+
+    // 부드러운 조향 변화 (서서히 조향값으로 이동)
+    const steerDiff = steeringTarget - steeringAngle;
+    steeringAngle += steerDiff * 0.2;
+
+    // 조향 각도에 따라 자동차 회전
+    // 속도에 비례해 조향 각도 곱해서 회전 속도 조절
+    car.rotation.y += steeringAngle * speed * 0.8;
+
+    // 자동차 위치 이동
     car.position.x -= Math.sin(car.rotation.y) * speed;
     car.position.z -= Math.cos(car.rotation.y) * speed;
 
-    // 카메라 추적
-    const behind = new THREE.Vector3(0, 5, 10).applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
-    const camPos = car.position.clone().add(behind);
-    camera.position.lerp(camPos, 0.1);
+    // 카메라가 자동차 뒤쪽을 따라가도록 lerp로 부드럽게 이동
+    const desiredCamPos = car.position.clone()
+      .add(new THREE.Vector3(0, 5, 10).applyAxisAngle(new THREE.Vector3(0,1,0), car.rotation.y));
+    camera.position.lerp(desiredCamPos, 0.1);
+
     camera.lookAt(car.position);
 
-    const kph = Math.abs(speed / maxSpeed * 200);
-    speedEl.textContent = `속도: ${kph.toFixed(0)} km/h`;
+    // 속도 km/h 변환 및 제한 표시
+    const kmh = Math.abs(speed / maxSpeed * 200);
+    speedEl.textContent = `속도: ${kmh.toFixed(0)} km/h`;
 
     renderer.render(scene, camera);
   }
@@ -196,5 +230,6 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 </script>
+
 </body>
 </html>
