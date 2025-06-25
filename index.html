@@ -2,19 +2,19 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title></title> <!-- 게임 실행 시 제목 숨김 -->
+  <title></title> <!-- 제목 비우기 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <style>
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      font-family: sans-serif;
       background: #000;
+      font-family: sans-serif;
     }
     canvas {
       display: block;
     }
-
     #rotateNotice {
       position: fixed;
       inset: 0;
@@ -25,105 +25,100 @@
       justify-content: center;
       align-items: center;
       font-size: 1.5rem;
+      z-index: 999;
       text-align: center;
-      z-index: 200;
     }
-
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      z-index: 100;
-      display: flex;
-      gap: 16px;
-    }
-
-    #leftControls {
-      left: 20px;
-      flex-direction: row;
-    }
-
-    #rightControls {
-      right: 20px;
-      flex-direction: column;
-    }
-
-    .btn {
-      width: 80px;
-      height: 80px;
-      background: rgba(79, 158, 255, 0.8);
-      border-radius: 14px;
-      color: white;
-      font-size: 28px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-      touch-action: none;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    }
-
-    .btn:active {
-      background: rgba(79, 158, 255, 1);
-    }
-
-    #speedometer {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      font-size: 24px;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 10px 16px;
-      border-radius: 10px;
-      z-index: 101;
-    }
-
     @media (orientation: portrait) {
       #rotateNotice {
         display: flex;
       }
-      canvas, #leftControls, #rightControls, #speedometer {
+      canvas, .controls, #speed {
         display: none !important;
       }
+    }
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      z-index: 10;
+      display: flex;
+      gap: 20px;
+    }
+    #leftControls {
+      left: 20px;
+      flex-direction: row;
+    }
+    #rightControls {
+      right: 20px;
+      flex-direction: column;
+    }
+    .btn {
+      width: 80px;
+      height: 80px;
+      font-size: 2rem;
+      font-weight: bold;
+      background: rgba(79,158,255,0.8);
+      color: #fff;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      user-select: none;
+      cursor: pointer;
+    }
+    .btn:active {
+      background: rgba(79,158,255,1);
+    }
+    #speed {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.5);
+      padding: 12px 18px;
+      color: white;
+      font-size: 24px;
+      border-radius: 12px;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
 
 <div id="rotateNotice">
-  <p>이 게임은 가로 모드에서만 플레이할 수 있습니다.</p>
-  <p>기기를 회전해 주세요 📱↔️</p>
+  <p>이 게임은 가로 모드에서만 가능합니다.<br>기기를 회전해 주세요 📱↔️</p>
 </div>
 
 <div id="leftControls" class="controls">
-  <div id="btnLeft" class="btn">◀</div>
-  <div id="btnRight" class="btn">▶</div>
+  <div class="btn" id="btnLeft">◀</div>
+  <div class="btn" id="btnRight">▶</div>
 </div>
+
 <div id="rightControls" class="controls">
-  <div id="btnAccel" class="btn">▲</div>
-  <div id="btnBrake" class="btn">▼</div>
+  <div class="btn" id="btnAccel">▲</div>
+  <div class="btn" id="btnBrake">▼</div>
 </div>
-<div id="speedometer">속도: 0</div>
+
+<div id="speed">속도: 0</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
 
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
+  // 바닥
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(200, 200),
+    new THREE.PlaneGeometry(500, 500),
     new THREE.MeshPhongMaterial({ color: 0x444444 })
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
+  // 자동차
   const car = new THREE.Mesh(
     new THREE.BoxGeometry(2, 1, 4),
     new THREE.MeshPhongMaterial({ color: 0xff0000 })
@@ -131,39 +126,40 @@
   car.position.y = 0.5;
   scene.add(car);
 
+  // 조명
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const light = new THREE.DirectionalLight(0xffffff, 0.8);
   light.position.set(5, 10, 7);
   scene.add(light);
 
+  // 조작 상태
   let speed = 0;
   const maxSpeed = 0.2;
   const accel = 0.01;
-  const brakePower = 0.02;
+  const brake = 0.02;
   const turnSpeed = 0.03;
 
   const keys = {};
   const touch = { left: false, right: false, accel: false, brake: false };
 
-  const speedometer = document.getElementById("speedometer");
+  document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+  document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-  window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-  window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-  function bindTouch(id, key) {
+  function bindBtn(id, key) {
     const el = document.getElementById(id);
-    const set = v => () => touch[key] = v;
-    el.addEventListener('touchstart', set(true), { passive: false });
-    el.addEventListener('touchend', set(false), { passive: false });
-    el.addEventListener('mousedown', set(true));
-    el.addEventListener('mouseup', set(false));
-    el.addEventListener('mouseleave', set(false));
+    el.addEventListener('touchstart', () => touch[key] = true);
+    el.addEventListener('touchend', () => touch[key] = false);
+    el.addEventListener('mousedown', () => touch[key] = true);
+    el.addEventListener('mouseup', () => touch[key] = false);
+    el.addEventListener('mouseleave', () => touch[key] = false);
   }
 
-  bindTouch('btnLeft', 'left');
-  bindTouch('btnRight', 'right');
-  bindTouch('btnAccel', 'accel');
-  bindTouch('btnBrake', 'brake');
+  bindBtn('btnLeft', 'left');
+  bindBtn('btnRight', 'right');
+  bindBtn('btnAccel', 'accel');
+  bindBtn('btnBrake', 'brake');
+
+  const speedEl = document.getElementById('speed');
 
   function animate() {
     requestAnimationFrame(animate);
@@ -173,41 +169,37 @@
     const left = keys['a'] || keys['arrowleft'] || touch.left;
     const right = keys['d'] || keys['arrowright'] || touch.right;
 
+    // 속도 처리
     if (forward) speed = Math.min(speed + accel, maxSpeed);
-    else if (back) speed = Math.max(speed - brakePower, -maxSpeed / 2);
-    else {
-      speed *= 0.96;
-      if (Math.abs(speed) < 0.001) speed = 0;
-    }
+    else if (back) speed = Math.max(speed - brake, -maxSpeed / 2);
+    else speed *= 0.96;
 
+    // 회전
     if (left && speed !== 0) car.rotation.y += (speed > 0 ? 1 : -1) * turnSpeed;
     if (right && speed !== 0) car.rotation.y -= (speed > 0 ? 1 : -1) * turnSpeed;
 
+    // 이동
     car.position.x -= Math.sin(car.rotation.y) * speed;
     car.position.z -= Math.cos(car.rotation.y) * speed;
 
-    const behind = new THREE.Vector3(0, 4, 10);
+    // 카메라
+    const behind = new THREE.Vector3(0, 5, 10);
     behind.applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
     const camPos = car.position.clone().add(behind);
     camera.position.lerp(camPos, 0.1);
     camera.lookAt(car.position);
 
-    speedometer.textContent = `속도: ${(Math.abs(speed) * 100).toFixed(0)}`;
+    speedEl.textContent = `속도: ${(Math.abs(speed) * 100).toFixed(0)}`;
 
     renderer.render(scene, camera);
   }
 
   animate();
 
-  function resizeCanvas() {
+  window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  window.addEventListener('resize', resizeCanvas);
-  window.addEventListener('orientationchange', () => {
-    setTimeout(resizeCanvas, 300);
   });
 </script>
 </body>
