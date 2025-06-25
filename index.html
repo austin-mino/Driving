@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>driving</title>
+  <title></title> <!-- 게임 실행 시 제목 숨김 -->
   <style>
     html, body {
       margin: 0;
@@ -34,16 +34,17 @@
       bottom: 20px;
       z-index: 100;
       display: flex;
-      flex-direction: column;
       gap: 16px;
     }
 
     #leftControls {
       left: 20px;
+      flex-direction: row;
     }
 
     #rightControls {
       right: 20px;
+      flex-direction: column;
     }
 
     .btn {
@@ -59,21 +60,31 @@
       justify-content: center;
       user-select: none;
       touch-action: none;
-      -webkit-tap-highlight-color: transparent;
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-      transition: background 0.3s;
     }
 
     .btn:active {
       background: rgba(79, 158, 255, 1);
     }
 
+    #speedometer {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 16px;
+      border-radius: 10px;
+      z-index: 101;
+    }
+
     @media (orientation: portrait) {
       #rotateNotice {
         display: flex;
       }
-      canvas, #leftControls, #rightControls {
+      canvas, #leftControls, #rightControls, #speedometer {
         display: none !important;
       }
     }
@@ -86,7 +97,6 @@
   <p>기기를 회전해 주세요 📱↔️</p>
 </div>
 
-<!-- 터치 컨트롤 -->
 <div id="leftControls" class="controls">
   <div id="btnLeft" class="btn">◀</div>
   <div id="btnRight" class="btn">▶</div>
@@ -95,6 +105,7 @@
   <div id="btnAccel" class="btn">▲</div>
   <div id="btnBrake" class="btn">▼</div>
 </div>
+<div id="speedometer">속도: 0</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
@@ -133,6 +144,8 @@
 
   const keys = {};
   const touch = { left: false, right: false, accel: false, brake: false };
+
+  const speedometer = document.getElementById("speedometer");
 
   window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
   window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -178,6 +191,8 @@
     const camPos = car.position.clone().add(behind);
     camera.position.lerp(camPos, 0.1);
     camera.lookAt(car.position);
+
+    speedometer.textContent = `속도: ${(Math.abs(speed) * 100).toFixed(0)}`;
 
     renderer.render(scene, camera);
   }
